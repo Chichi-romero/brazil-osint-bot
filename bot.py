@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -40,10 +40,53 @@ async def persona(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def recibir_nombre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     nombre = update.message.text
 
-    resultado = buscar_persona(nombre)
+    resultados = buscar_persona(nombre)
+
+    keyboard = []
+
+    titulos = {
+        "buscadores": "🔎 BUSCADORES",
+        "redes_sociales": "📱 REDES SOCIALES",
+        "profesional": "💼 PROFESIONAL",
+    }
+
+    for categoria, fuentes in resultados.items():
+
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    titulos.get(categoria, categoria.upper()),
+                    callback_data="info"
+                )
+            ]
+        )
+
+        fila = []
+
+        for fuente in fuentes:
+            fila.append(
+                InlineKeyboardButton(
+                    f"{fuente['emoji']} {fuente['nombre']}",
+                    url=fuente["url"]
+                )
+            )
+
+            if len(fila) == 2:
+                keyboard.append(fila)
+                fila = []
+
+        if fila:
+            keyboard.append(fila)
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
-        f"🔎 Resultado:\n\n{resultado}"
+        f"🕵️‍♂️ PERSONA\n"
+        f"━━━━━━━━━━━━━━━━\n\n"
+        f"Nombre:\n"
+        f"{nombre}\n\n"
+        f"Selecciona una fuente para realizar una búsqueda pública:",
+        reply_markup=reply_markup,
     )
 
     return ConversationHandler.END
