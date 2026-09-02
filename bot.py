@@ -22,11 +22,29 @@ ESPERANDO_NOMBRE = 1
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [
+            InlineKeyboardButton("👤 Persona", callback_data="persona"),
+            InlineKeyboardButton("🏢 Empresa", callback_data="empresa"),
+        ],
+        [
+            InlineKeyboardButton("📱 Teléfono", callback_data="telefono"),
+            InlineKeyboardButton("🚗 Vehículo", callback_data="vehiculo"),
+        ],
+        [
+            InlineKeyboardButton("📍 Dirección", callback_data="direccion"),
+            InlineKeyboardButton("🌐 Dominio", callback_data="dominio"),
+        ],
+    ]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     await update.message.reply_text(
-        "🕵️‍♂️ Brazil OSINT Bot\n\n"
-        "¡Bienvenido!\n"
-        "Nuestro bot OSINT está funcionando. 🚀\n\n"
-        "Usa /persona para comenzar una búsqueda."
+        "🕵️‍♂️ BRAZIL OSINT\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        "¿Qué quieres investigar?\n\n"
+        "Selecciona una categoría:",
+        reply_markup=reply_markup,
     )
 
 
@@ -56,7 +74,7 @@ async def recibir_nombre(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [
                 InlineKeyboardButton(
                     titulos.get(categoria, categoria.upper()),
-                    callback_data="info"
+                    callback_data="info",
                 )
             ]
         )
@@ -67,7 +85,7 @@ async def recibir_nombre(update: Update, context: ContextTypes.DEFAULT_TYPE):
             fila.append(
                 InlineKeyboardButton(
                     f"{fuente['emoji']} {fuente['nombre']}",
-                    url=fuente["url"]
+                    url=fuente["url"],
                 )
             )
 
@@ -99,6 +117,29 @@ async def cancelar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
+async def botones_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "persona":
+        await query.message.reply_text(
+            "🕵️‍♂️ Introduce el nombre completo de la persona que quieres investigar:"
+        )
+        return ESPERANDO_NOMBRE
+
+    mensajes = {
+        "empresa": "🏢 Módulo Empresa\n\n🚧 Próximamente...",
+        "telefono": "📱 Módulo Teléfono\n\n🚧 Próximamente...",
+        "vehiculo": "🚗 Módulo Vehículo\n\n🚧 Próximamente...",
+        "direccion": "📍 Módulo Dirección\n\n🚧 Próximamente...",
+        "dominio": "🌐 Módulo Dominio\n\n🚧 Próximamente...",
+    }
+
+    await query.message.reply_text(
+        mensajes.get(query.data, "Opción no disponible.")
+    )
+
+
 def main():
     app = Application.builder().token(TOKEN).build()
 
@@ -110,7 +151,7 @@ def main():
             ESPERANDO_NOMBRE: [
                 MessageHandler(
                     filters.TEXT & ~filters.COMMAND,
-                    recibir_nombre
+                    recibir_nombre,
                 )
             ]
         },
@@ -121,6 +162,12 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(conversacion_persona)
+
+    from telegram.ext import CallbackQueryHandler
+
+    app.add_handler(
+        CallbackQueryHandler(botones_menu)
+    )
 
     print("🤖 Brazil OSINT Bot iniciado...")
     print("Presiona Ctrl+C para detenerlo.")
