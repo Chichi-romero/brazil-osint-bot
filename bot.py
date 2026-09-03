@@ -1,4 +1,6 @@
 import os
+from urllib.parse import quote_plus
+
 from dotenv import load_dotenv
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -15,6 +17,7 @@ from telegram.ext import (
 from modules.persona import buscar_persona
 from modules.empresa import buscar_empresa_por_cnpj
 from modules.telefono import analisar_telefone
+from modules.vehiculo import analisar_placa
 
 
 load_dotenv()
@@ -23,6 +26,7 @@ TOKEN = os.getenv("BOT_TOKEN")
 ESPERANDO_NOMBRE = 1
 ESPERANDO_CNPJ = 2
 ESPERANDO_TELEFONO = 3
+ESPERANDO_PLACA = 4
 
 
 # ============================================================
@@ -138,10 +142,7 @@ async def empresa(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [
-            InlineKeyboardButton(
-                "🔢 CNPJ",
-                callback_data="cnpj",
-            )
+            InlineKeyboardButton("🔢 CNPJ", callback_data="cnpj")
         ],
         [
             InlineKeyboardButton(
@@ -197,20 +198,14 @@ async def recibir_cnpj(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [
-            InlineKeyboardButton(
-                "🔍 Google",
-                url=resultados["google"],
-            ),
+            InlineKeyboardButton("🔍 Google", url=resultados["google"]),
             InlineKeyboardButton(
                 "📰 Google News",
                 url=resultados["google_news"],
             ),
         ],
         [
-            InlineKeyboardButton(
-                "🔎 Bing",
-                url=resultados["bing"],
-            ),
+            InlineKeyboardButton("🔎 Bing", url=resultados["bing"]),
             InlineKeyboardButton(
                 "🦆 DuckDuckGo",
                 url=resultados["duckduckgo"],
@@ -251,7 +246,6 @@ async def telefono(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def recibir_telefono(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     telefone_usuario = update.message.text
-
     resultado = analisar_telefone(telefone_usuario)
 
     if resultado is None:
@@ -266,12 +260,9 @@ async def recibir_telefono(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     numero = resultado["numero"]
     numero_internacional = resultado["numero_internacional"]
-    ddd = resultado["ddd"]
 
     busqueda_numero = f'"{numero}"'
     busqueda_internacional = f'"{numero_internacional}"'
-
-    from urllib.parse import quote_plus
 
     google = (
         "https://www.google.com/search?q="
@@ -320,7 +311,7 @@ async def recibir_telefono(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"━━━━━━━━━━━━━━━━\n\n"
         f"📞 Número: {numero}\n"
         f"🌎 Internacional: +{numero_internacional}\n"
-        f"📍 DDD: {ddd}\n"
+        f"📍 DDD: {resultado['ddd']}\n"
         f"📱 Tipo: {resultado['tipo']}\n\n"
         f"🔎 Búsquedas públicas:",
         reply_markup=InlineKeyboardMarkup(keyboard),
@@ -330,14 +321,103 @@ async def recibir_telefono(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ============================================================
+# VEHÍCULO
+# ============================================================
+
+async def vehiculo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    await query.message.reply_text(
+        "🚗 Introduce la placa del vehículo que quieres investigar:\n\n"
+        "Ejemplos:\n"
+        "ABC-1234\n"
+        "ABC1D23"
+    )
+
+    return ESPERANDO_PLACA
+
+
+async def recibir_placa(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    placa_usuario = update.message.text
+    resultado = analisar_placa(placa_usuario)
+
+    if resultado is None:
+
+        await update.message.reply_text(
+            "❌ La placa no tiene un formato brasileño válido.\n\n"
+            "Formatos aceptados:\n"
+            "• ABC-1234\n"
+            "• ABC1D23"
+        )
+
+        return ESPERANDO_PLACA
+
+    placa = resultado["placa"]
+
+    busqueda = f'"{placa}"'
+
+    google = (
+        "https://www.google.com/search?q="
+        + quote_plus(busqueda)
+    )
+
+    google_news = (
+        "https://www.google.com/search?tbm=nws&q="
+        + quote_plus(busqueda)
+    )
+
+    bing = (
+        "https://www.bing.com/search?q="
+        + quote_plus(busqueda)
+    )
+
+    duckduckgo = (
+        "https://duckduckgo.com/?q="
+        + quote_plus(busqueda)
+    )
+
+    keyboard = [
+        [
+            InlineKeyboardButton("🔍 Google", url=google),
+            InlineKeyboardButton(
+                "📰 Google News",
+                url=google_news,
+            ),
+        ],
+        [
+            InlineKeyboardButton("🔎 Bing", url=bing),
+            InlineKeyboardButton(
+                "🦆 DuckDuckGo",
+                url=duckduckgo,
+            ),
+        ],
+    ]
+
+    await update.message.reply_text(
+        f"🚗 VEHÍCULO\n"
+        f"━━━━━━━━━━━━━━━━\n\n"
+        f"🔢 Placa: {placa}\n"
+        f"📋 Formato: {resultado['tipo']}\n\n"
+        f"🔎 Búsquedas públicas:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+    )
+
+    # IMPORTANTE:
+    # Mantiene la conversación activa para poder
+    # introducir otra placa inmediatamente.
+    return ESPERANDO_PLACA
+
+
+# ============================================================
 # CANCELAR
 # ============================================================
 
 async def cancelar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    await update.message.reply_text(
-        "❌ Búsqueda cancelada."
-    )
+    await update.message.reply_text("❌ Búsqueda cancelada.")
 
     return ConversationHandler.END
 
@@ -365,9 +445,6 @@ async def botones_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "nome_fantasia":
             "🏪 Nome Fantasia\n\n🚧 Próximamente...",
 
-        "vehiculo":
-            "🚗 Módulo Vehículo\n\n🚧 Próximamente...",
-
         "direccion":
             "📍 Módulo Dirección\n\n🚧 Próximamente...",
 
@@ -394,7 +471,6 @@ def main():
     app = Application.builder().token(TOKEN).build()
 
     conversacion_persona = ConversationHandler(
-
         entry_points=[
             CommandHandler("persona", persona),
             CallbackQueryHandler(
@@ -402,7 +478,6 @@ def main():
                 pattern="^persona$"
             ),
         ],
-
         states={
             ESPERANDO_NOMBRE: [
                 MessageHandler(
@@ -411,21 +486,18 @@ def main():
                 )
             ]
         },
-
         fallbacks=[
             CommandHandler("cancelar", cancelar)
         ],
     )
 
     conversacion_cnpj = ConversationHandler(
-
         entry_points=[
             CallbackQueryHandler(
                 cnpj,
                 pattern="^cnpj$"
             )
         ],
-
         states={
             ESPERANDO_CNPJ: [
                 MessageHandler(
@@ -434,21 +506,18 @@ def main():
                 )
             ]
         },
-
         fallbacks=[
             CommandHandler("cancelar", cancelar)
         ],
     )
 
     conversacion_telefono = ConversationHandler(
-
         entry_points=[
             CallbackQueryHandler(
                 telefono,
                 pattern="^telefono$"
             )
         ],
-
         states={
             ESPERANDO_TELEFONO: [
                 MessageHandler(
@@ -457,31 +526,37 @@ def main():
                 )
             ]
         },
-
         fallbacks=[
             CommandHandler("cancelar", cancelar)
         ],
     )
 
-    app.add_handler(
-        CommandHandler("start", start)
+    conversacion_vehiculo = ConversationHandler(
+        entry_points=[
+            CallbackQueryHandler(
+                vehiculo,
+                pattern="^vehiculo$"
+            )
+        ],
+        states={
+            ESPERANDO_PLACA: [
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND,
+                    recibir_placa
+                )
+            ]
+        },
+        fallbacks=[
+            CommandHandler("cancelar", cancelar)
+        ],
     )
 
-    app.add_handler(
-        conversacion_persona
-    )
-
-    app.add_handler(
-        conversacion_cnpj
-    )
-
-    app.add_handler(
-        conversacion_telefono
-    )
-
-    app.add_handler(
-        CallbackQueryHandler(botones_menu)
-    )
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(conversacion_persona)
+    app.add_handler(conversacion_cnpj)
+    app.add_handler(conversacion_telefono)
+    app.add_handler(conversacion_vehiculo)
+    app.add_handler(CallbackQueryHandler(botones_menu))
 
     print("🤖 Brazil OSINT Bot iniciado...")
     print("Presiona Ctrl+C para detenerlo.")
