@@ -18,6 +18,7 @@ from modules.persona import buscar_persona
 from modules.empresa import buscar_empresa_por_cnpj
 from modules.telefono import analisar_telefone
 from modules.vehiculo import analisar_placa
+from modules.direccion import analisar_direccion
 
 
 load_dotenv()
@@ -27,6 +28,7 @@ ESPERANDO_NOMBRE = 1
 ESPERANDO_CNPJ = 2
 ESPERANDO_TELEFONO = 3
 ESPERANDO_PLACA = 4
+ESPERANDO_DIRECCION = 5
 
 
 # ============================================================
@@ -356,7 +358,6 @@ async def recibir_placa(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ESPERANDO_PLACA
 
     placa = resultado["placa"]
-
     busqueda = f'"{placa}"'
 
     google = (
@@ -405,10 +406,101 @@ async def recibir_placa(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
-    # IMPORTANTE:
-    # Mantiene la conversación activa para poder
-    # introducir otra placa inmediatamente.
     return ESPERANDO_PLACA
+
+
+# ============================================================
+# DIRECCIÓN
+# ============================================================
+
+async def direccion(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    await query.message.reply_text(
+        "📍 Introduce la dirección que quieres investigar:\n\n"
+        "Ejemplo:\n"
+        "Av. Francisco Matarazzo, 1000, Água Branca, São Paulo - SP, 05001-100"
+    )
+
+    return ESPERANDO_DIRECCION
+
+
+async def recibir_direccion(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    direccion_usuario = update.message.text
+    resultado = analisar_direccion(direccion_usuario)
+
+    if resultado is None:
+
+        await update.message.reply_text(
+            "❌ La dirección no parece válida.\n\n"
+            "Introduce una dirección más completa."
+        )
+
+        return ESPERANDO_DIRECCION
+
+    direccion_normalizada = resultado["direccion"]
+    cep = resultado["cep"]
+
+    busqueda_direccion = f'"{direccion_normalizada}"'
+
+    google = (
+        "https://www.google.com/search?q="
+        + quote_plus(busqueda_direccion)
+    )
+
+    google_maps = (
+        "https://www.google.com/maps/search/?api=1&query="
+        + quote_plus(direccion_normalizada)
+    )
+
+    google_news = (
+        "https://www.google.com/search?tbm=nws&q="
+        + quote_plus(busqueda_direccion)
+    )
+
+    bing = (
+        "https://www.bing.com/search?q="
+        + quote_plus(busqueda_direccion)
+    )
+
+    duckduckgo = (
+        "https://duckduckgo.com/?q="
+        + quote_plus(busqueda_direccion)
+    )
+
+    keyboard = [
+        [
+            InlineKeyboardButton("🔍 Google", url=google),
+            InlineKeyboardButton("🗺️ Google Maps", url=google_maps),
+        ],
+        [
+            InlineKeyboardButton("📰 Google News", url=google_news),
+            InlineKeyboardButton("🔎 Bing", url=bing),
+        ],
+        [
+            InlineKeyboardButton(
+                "🦆 DuckDuckGo",
+                url=duckduckgo,
+            )
+        ],
+    ]
+
+    cep_texto = cep if cep else "No detectado"
+
+    await update.message.reply_text(
+        f"📍 DIRECCIÓN\n"
+        f"━━━━━━━━━━━━━━━━\n\n"
+        f"🏠 Dirección:\n"
+        f"{direccion_normalizada}\n\n"
+        f"📮 CEP: {cep_texto}\n\n"
+        f"🔎 Búsquedas públicas:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+    )
+
+    return ESPERANDO_DIRECCION
 
 
 # ============================================================
@@ -417,7 +509,9 @@ async def recibir_placa(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cancelar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    await update.message.reply_text("❌ Búsqueda cancelada.")
+    await update.message.reply_text(
+        "❌ Búsqueda cancelada."
+    )
 
     return ConversationHandler.END
 
@@ -444,9 +538,6 @@ async def botones_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         "nome_fantasia":
             "🏪 Nome Fantasia\n\n🚧 Próximamente...",
-
-        "direccion":
-            "📍 Módulo Dirección\n\n🚧 Próximamente...",
 
         "dominio":
             "🌐 Módulo Dominio\n\n🚧 Próximamente...",
@@ -551,11 +642,32 @@ def main():
         ],
     )
 
+    conversacion_direccion = ConversationHandler(
+        entry_points=[
+            CallbackQueryHandler(
+                direccion,
+                pattern="^direccion$"
+            )
+        ],
+        states={
+            ESPERANDO_DIRECCION: [
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND,
+                    recibir_direccion
+                )
+            ]
+        },
+        fallbacks=[
+            CommandHandler("cancelar", cancelar)
+        ],
+    )
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(conversacion_persona)
     app.add_handler(conversacion_cnpj)
     app.add_handler(conversacion_telefono)
     app.add_handler(conversacion_vehiculo)
+    app.add_handler(conversacion_direccion)
     app.add_handler(CallbackQueryHandler(botones_menu))
 
     print("🤖 Brazil OSINT Bot iniciado...")
