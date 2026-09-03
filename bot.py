@@ -14,6 +14,7 @@ from telegram.ext import (
 
 from modules.persona import buscar_persona
 from modules.empresa import buscar_empresa_por_cnpj
+from modules.telefono import analisar_telefone
 
 
 load_dotenv()
@@ -21,6 +22,7 @@ TOKEN = os.getenv("BOT_TOKEN")
 
 ESPERANDO_NOMBRE = 1
 ESPERANDO_CNPJ = 2
+ESPERANDO_TELEFONO = 3
 
 
 # ============================================================
@@ -76,7 +78,6 @@ async def persona(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def recibir_nombre(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     nombre = update.message.text
-
     resultados = buscar_persona(nombre)
 
     keyboard = []
@@ -89,14 +90,12 @@ async def recibir_nombre(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     for categoria, fuentes in resultados.items():
 
-        fila_titulo = [
+        keyboard.append([
             InlineKeyboardButton(
                 titulos.get(categoria, categoria.upper()),
                 callback_data="noop",
             )
-        ]
-
-        keyboard.append(fila_titulo)
+        ])
 
         fila = []
 
@@ -184,7 +183,6 @@ async def cnpj(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def recibir_cnpj(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     cnpj_usuario = update.message.text
-
     resultados = buscar_empresa_por_cnpj(cnpj_usuario)
 
     if resultados is None:
@@ -233,6 +231,105 @@ async def recibir_cnpj(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ============================================================
+# TELÉFONO
+# ============================================================
+
+async def telefono(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    await query.message.reply_text(
+        "📱 Introduce el número de teléfono que quieres investigar:\n\n"
+        "Ejemplo:\n"
+        "+55 11 99999-9999"
+    )
+
+    return ESPERANDO_TELEFONO
+
+
+async def recibir_telefono(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    telefone_usuario = update.message.text
+
+    resultado = analisar_telefone(telefone_usuario)
+
+    if resultado is None:
+
+        await update.message.reply_text(
+            "❌ El número no tiene un formato válido.\n\n"
+            "Introduce un teléfono brasileño válido.\n"
+            "Ejemplo: +55 11 99999-9999"
+        )
+
+        return ESPERANDO_TELEFONO
+
+    numero = resultado["numero"]
+    numero_internacional = resultado["numero_internacional"]
+    ddd = resultado["ddd"]
+
+    busqueda_numero = f'"{numero}"'
+    busqueda_internacional = f'"{numero_internacional}"'
+
+    from urllib.parse import quote_plus
+
+    google = (
+        "https://www.google.com/search?q="
+        + quote_plus(busqueda_numero)
+    )
+
+    google_internacional = (
+        "https://www.google.com/search?q="
+        + quote_plus(busqueda_internacional)
+    )
+
+    google_news = (
+        "https://www.google.com/search?tbm=nws&q="
+        + quote_plus(busqueda_numero)
+    )
+
+    bing = (
+        "https://www.bing.com/search?q="
+        + quote_plus(busqueda_numero)
+    )
+
+    duckduckgo = (
+        "https://duckduckgo.com/?q="
+        + quote_plus(busqueda_numero)
+    )
+
+    keyboard = [
+        [
+            InlineKeyboardButton("🔍 Google", url=google),
+            InlineKeyboardButton("📰 Google News", url=google_news),
+        ],
+        [
+            InlineKeyboardButton("🔎 Bing", url=bing),
+            InlineKeyboardButton("🦆 DuckDuckGo", url=duckduckgo),
+        ],
+        [
+            InlineKeyboardButton(
+                "🌎 Google Internacional",
+                url=google_internacional,
+            )
+        ],
+    ]
+
+    await update.message.reply_text(
+        f"📱 TELÉFONO\n"
+        f"━━━━━━━━━━━━━━━━\n\n"
+        f"📞 Número: {numero}\n"
+        f"🌎 Internacional: +{numero_internacional}\n"
+        f"📍 DDD: {ddd}\n"
+        f"📱 Tipo: {resultado['tipo']}\n\n"
+        f"🔎 Búsquedas públicas:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+    )
+
+    return ConversationHandler.END
+
+
+# ============================================================
 # CANCELAR
 # ============================================================
 
@@ -253,7 +350,6 @@ async def botones_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     query = update.callback_query
 
-    # Evita errores cuando se pulsa un botón que no necesita acción
     if query.data == "noop":
         await query.answer()
         return
@@ -268,9 +364,6 @@ async def botones_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         "nome_fantasia":
             "🏪 Nome Fantasia\n\n🚧 Próximamente...",
-
-        "telefono":
-            "📱 Módulo Teléfono\n\n🚧 Próximamente...",
 
         "vehiculo":
             "🚗 Módulo Vehículo\n\n🚧 Próximamente...",
@@ -300,10 +393,6 @@ def main():
 
     app = Application.builder().token(TOKEN).build()
 
-    # --------------------------------------------------------
-    # Conversación Persona
-    # --------------------------------------------------------
-
     conversacion_persona = ConversationHandler(
 
         entry_points=[
@@ -328,10 +417,6 @@ def main():
         ],
     )
 
-    # --------------------------------------------------------
-    # Conversación CNPJ
-    # --------------------------------------------------------
-
     conversacion_cnpj = ConversationHandler(
 
         entry_points=[
@@ -355,9 +440,28 @@ def main():
         ],
     )
 
-    # --------------------------------------------------------
-    # Handlers
-    # --------------------------------------------------------
+    conversacion_telefono = ConversationHandler(
+
+        entry_points=[
+            CallbackQueryHandler(
+                telefono,
+                pattern="^telefono$"
+            )
+        ],
+
+        states={
+            ESPERANDO_TELEFONO: [
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND,
+                    recibir_telefono
+                )
+            ]
+        },
+
+        fallbacks=[
+            CommandHandler("cancelar", cancelar)
+        ],
+    )
 
     app.add_handler(
         CommandHandler("start", start)
@@ -372,12 +476,12 @@ def main():
     )
 
     app.add_handler(
-        CallbackQueryHandler(botones_menu)
+        conversacion_telefono
     )
 
-    # --------------------------------------------------------
-    # Iniciar bot
-    # --------------------------------------------------------
+    app.add_handler(
+        CallbackQueryHandler(botones_menu)
+    )
 
     print("🤖 Brazil OSINT Bot iniciado...")
     print("Presiona Ctrl+C para detenerlo.")
