@@ -3,7 +3,12 @@ from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
+
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -15,7 +20,10 @@ from telegram.ext import (
 )
 
 from modules.persona import buscar_persona
-from modules.empresa import buscar_empresa_por_cnpj
+from modules.empresa import (
+    buscar_empresa_por_cnpj,
+    buscar_empresa_por_nome,
+)
 from modules.telefono import analisar_telefone
 from modules.vehiculo import analisar_placa
 from modules.direccion import analisar_direccion
@@ -28,7 +36,9 @@ from modules.dominio import analisar_dominio
 
 load_dotenv()
 
-TOKEN = os.getenv("BOT_TOKEN")
+TOKEN = os.getenv(
+    "BOT_TOKEN"
+)
 
 
 # ============================================================
@@ -41,6 +51,8 @@ ESPERANDO_TELEFONO = 3
 ESPERANDO_PLACA = 4
 ESPERANDO_DIRECCION = 5
 ESPERANDO_DOMINIO = 6
+ESPERANDO_RAZAO_SOCIAL = 7
+ESPERANDO_NOME_FANTASIA = 8
 
 
 # ============================================================
@@ -48,6 +60,7 @@ ESPERANDO_DOMINIO = 6
 # ============================================================
 
 def teclado_menu_principal():
+
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton(
@@ -82,11 +95,15 @@ def teclado_menu_principal():
     ])
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
 
     if update.callback_query:
 
         query = update.callback_query
+
         await query.answer()
 
         await query.message.reply_text(
@@ -118,6 +135,7 @@ async def menu_principal(
 ):
 
     query = update.callback_query
+
     await query.answer()
 
     await query.message.reply_text(
@@ -136,6 +154,7 @@ async def menu_principal(
 # ============================================================
 
 def teclado_busqueda():
+
     return [
         [
             InlineKeyboardButton(
@@ -164,12 +183,14 @@ async def persona(
     if update.callback_query:
 
         query = update.callback_query
+
         await query.answer()
 
         await query.message.reply_text(
             "🕵️‍♂️ PERSONA\n"
             "━━━━━━━━━━━━━━━━\n\n"
-            "Introduce el nombre completo de la persona:"
+            "Introduce el nombre completo "
+            "de la persona:"
         )
 
     else:
@@ -177,7 +198,8 @@ async def persona(
         await update.message.reply_text(
             "🕵️‍♂️ PERSONA\n"
             "━━━━━━━━━━━━━━━━\n\n"
-            "Introduce el nombre completo de la persona:"
+            "Introduce el nombre completo "
+            "de la persona:"
         )
 
     return ESPERANDO_NOMBRE
@@ -198,14 +220,21 @@ async def recibir_nombre(
 
         return ESPERANDO_NOMBRE
 
-    resultados = buscar_persona(nombre)
+    resultados = buscar_persona(
+        nombre
+    )
 
     keyboard = []
 
     titulos = {
-        "buscadores": "🔎 BUSCADORES",
-        "redes_sociales": "📱 REDES SOCIALES",
-        "profesional": "💼 PROFESIONAL",
+        "buscadores":
+            "🔎 BUSCADORES",
+
+        "redes_sociales":
+            "📱 REDES SOCIALES",
+
+        "profesional":
+            "💼 PROFESIONAL",
     }
 
     for categoria, fuentes in resultados.items():
@@ -226,7 +255,8 @@ async def recibir_nombre(
 
             fila.append(
                 InlineKeyboardButton(
-                    f"{fuente['emoji']} {fuente['nombre']}",
+                    f"{fuente['emoji']} "
+                    f"{fuente['nombre']}",
                     url=fuente["url"],
                 )
             )
@@ -234,12 +264,18 @@ async def recibir_nombre(
             if len(fila) == 2:
 
                 keyboard.append(fila)
+
                 fila = []
 
         if fila:
-            keyboard.append(fila)
 
-    keyboard.extend(teclado_busqueda())
+            keyboard.append(
+                fila
+            )
+
+    keyboard.extend(
+        teclado_busqueda()
+    )
 
     await update.message.reply_text(
         "🕵️‍♂️ PERSONA\n"
@@ -247,7 +283,9 @@ async def recibir_nombre(
         f"👤 Nombre:\n"
         f"{nombre}\n\n"
         "🔎 Búsquedas públicas:",
-        reply_markup=InlineKeyboardMarkup(keyboard),
+        reply_markup=InlineKeyboardMarkup(
+            keyboard
+        ),
     )
 
     return ESPERANDO_NOMBRE
@@ -259,12 +297,14 @@ async def nueva_busqueda_persona(
 ):
 
     query = update.callback_query
+
     await query.answer()
 
     await query.message.reply_text(
         "🔁 PERSONA\n"
         "━━━━━━━━━━━━━━━━\n\n"
-        "Introduce el nombre completo de la nueva persona:"
+        "Introduce el nombre completo "
+        "de la nueva persona:"
     )
 
     return ESPERANDO_NOMBRE
@@ -280,6 +320,7 @@ async def empresa(
 ):
 
     query = update.callback_query
+
     await query.answer()
 
     keyboard = [
@@ -293,11 +334,13 @@ async def empresa(
             InlineKeyboardButton(
                 "🏷️ Razão Social",
                 callback_data="razao_social"
-            ),
+            )
+        ],
+        [
             InlineKeyboardButton(
                 "🏪 Nome Fantasia",
                 callback_data="nome_fantasia"
-            ),
+            )
         ],
     ]
 
@@ -305,7 +348,9 @@ async def empresa(
         "🏢 EMPRESA\n"
         "━━━━━━━━━━━━━━━━\n\n"
         "¿Qué quieres buscar?",
-        reply_markup=InlineKeyboardMarkup(keyboard),
+        reply_markup=InlineKeyboardMarkup(
+            keyboard
+        ),
     )
 
 
@@ -319,12 +364,14 @@ async def cnpj(
 ):
 
     query = update.callback_query
+
     await query.answer()
 
     await query.message.reply_text(
-        "🔢 Introduce el CNPJ que quieres investigar:\n\n"
+        "🔢 Introduce el CNPJ que quieres "
+        "investigar:\n\n"
         "Ejemplo:\n"
-        "12.345.678/0001-90"
+        "00.000.000/0001-91"
     )
 
     return ESPERANDO_CNPJ
@@ -337,50 +384,443 @@ async def recibir_cnpj(
 
     cnpj_usuario = update.message.text
 
-    resultados = buscar_empresa_por_cnpj(cnpj_usuario)
+    resultado = buscar_empresa_por_cnpj(
+        cnpj_usuario
+    )
 
-    if resultados is None:
+    if resultado is None:
 
         await update.message.reply_text(
-            "❌ El CNPJ no tiene un formato válido.\n\n"
-            "Introduce un CNPJ de 14 dígitos.\n"
-            "Ejemplo: 12.345.678/0001-90"
+            "❌ El CNPJ no tiene un formato válido "
+            "o no encontramos datos públicos.\n\n"
+            "Introduce un CNPJ válido de 14 caracteres."
         )
 
         return ESPERANDO_CNPJ
+
+    dados = resultado.get(
+        "dados",
+        {}
+    )
+
+    identificacao = dados.get(
+        "identificacao",
+        {}
+    )
+
+    status = dados.get(
+        "status",
+        {}
+    )
+
+    atividades = dados.get(
+        "atividades",
+        {}
+    )
+
+    localizacao = dados.get(
+        "localizacao",
+        {}
+    )
+
+    contato = dados.get(
+        "contato",
+        {}
+    )
+
+    financas = dados.get(
+        "financas",
+        {}
+    )
+
+    quadro = dados.get(
+        "quadro_societario",
+        []
+    )
+
+    context.user_data[
+        "empresa_cnpj"
+    ] = resultado["cnpj"]
+
+    context.user_data[
+        "empresa_dados"
+    ] = dados
+
+    context.user_data[
+        "qsa"
+    ] = quadro
+
+    context.user_data[
+        "qsa_pagina"
+    ] = 0
+
+    razao_social = identificacao.get(
+        "razao_social",
+        "No informado"
+    )
+
+    nome_fantasia = identificacao.get(
+        "nome_fantasia",
+        "No informado"
+    )
+
+    tipo = identificacao.get(
+        "tipo",
+        "No informado"
+    )
+
+    data_abertura = identificacao.get(
+        "data_abertura",
+        "No informado"
+    )
+
+    situacao = status.get(
+        "situacao",
+        "No informado"
+    )
+
+    data_situacao = status.get(
+        "data",
+        "No informado"
+    )
+
+    motivo = status.get(
+        "motivo",
+        "No informado"
+    )
+
+    cnae = atividades.get(
+        "cnae_fiscal",
+        "No informado"
+    )
+
+    cnae_descricao = atividades.get(
+        "cnae_descricao",
+        "No informado"
+    )
+
+    tipo_logradouro = localizacao.get(
+        "tipo_logradouro",
+        ""
+    )
+
+    logradouro = localizacao.get(
+        "logradouro",
+        ""
+    )
+
+    numero = localizacao.get(
+        "numero",
+        ""
+    )
+
+    complemento = localizacao.get(
+        "complemento",
+        ""
+    )
+
+    bairro = localizacao.get(
+        "bairro",
+        ""
+    )
+
+    cep = localizacao.get(
+        "cep",
+        ""
+    )
+
+    municipio = localizacao.get(
+        "municipio",
+        ""
+    )
+
+    uf = localizacao.get(
+        "uf",
+        ""
+    )
+
+    ddd = contato.get(
+        "ddd",
+        ""
+    )
+
+    telefone = contato.get(
+        "telefone",
+        ""
+    )
+
+    email = contato.get(
+        "email",
+        ""
+    )
+
+    capital_social = financas.get(
+        "capital_social"
+    )
+
+    porte = financas.get(
+        "porte",
+        "No informado"
+    )
+
+    if isinstance(
+        capital_social,
+        (int, float)
+    ):
+
+        capital_formatado = (
+            f"R$ {capital_social:,.2f}"
+            .replace(",", "X")
+            .replace(".", ",")
+            .replace("X", ".")
+        )
+
+    else:
+
+        capital_formatado = (
+            "No informado"
+        )
+
+    cep_numerico = "".join(
+        c for c in str(cep)
+        if c.isdigit()
+    )
+
+    if len(cep_numerico) == 8:
+
+        cep_formatado = (
+            f"{cep_numerico[:5]}-"
+            f"{cep_numerico[5:]}"
+        )
+
+    else:
+
+        cep_formatado = (
+            str(cep)
+            if cep
+            else "No informado"
+        )
+
+    telefone_numerico = "".join(
+        c for c in str(telefone)
+        if c.isdigit()
+    )
+
+    if (
+        ddd
+        and len(telefone_numerico)
+        in (8, 9)
+    ):
+
+        telefone_formatado = (
+            f"({ddd}) "
+            f"{telefone_numerico[:4]}-"
+            f"{telefone_numerico[4:]}"
+        )
+
+    elif telefone:
+
+        telefone_formatado = (
+            f"({ddd}) {telefone}"
+            if ddd
+            else str(telefone)
+        )
+
+    else:
+
+        telefone_formatado = (
+            "No informado"
+        )
+
+    endereco_partes = []
+
+    if tipo_logradouro:
+
+        endereco_partes.append(
+            tipo_logradouro
+        )
+
+    if logradouro:
+
+        endereco_partes.append(
+            logradouro
+        )
+
+    endereco_linha = " ".join(
+        endereco_partes
+    )
+
+    if numero:
+
+        endereco_linha += (
+            f", {numero}"
+        )
+
+    if not endereco_linha:
+
+        endereco_linha = (
+            "No informado"
+        )
+
+    consulta = (
+        f'"{razao_social}" '
+        f'"{resultado["cnpj"]}"'
+    )
+
+    google = (
+        "https://www.google.com/search?q="
+        + quote_plus(consulta)
+    )
+
+    google_news = (
+        "https://www.google.com/search?"
+        "tbm=nws&q="
+        + quote_plus(consulta)
+    )
+
+    bing = (
+        "https://www.bing.com/search?q="
+        + quote_plus(consulta)
+    )
+
+    duckduckgo = (
+        "https://duckduckgo.com/?q="
+        + quote_plus(consulta)
+    )
+
+    google_maps = (
+        "https://www.google.com/maps/search/"
+        "?api=1&query="
+        + quote_plus(
+            f"{endereco_linha}, "
+            f"{bairro}, "
+            f"{municipio} - {uf}"
+        )
+    )
 
     keyboard = [
         [
             InlineKeyboardButton(
                 "🔍 Google",
-                url=resultados["google"]
+                url=google
             ),
             InlineKeyboardButton(
                 "📰 Google News",
-                url=resultados["google_news"]
+                url=google_news
             ),
         ],
         [
             InlineKeyboardButton(
                 "🔎 Bing",
-                url=resultados["bing"]
+                url=bing
             ),
             InlineKeyboardButton(
                 "🦆 DuckDuckGo",
-                url=resultados["duckduckgo"]
+                url=duckduckgo
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                "🗺️ Google Maps",
+                url=google_maps
             ),
         ],
     ]
 
-    keyboard.extend(teclado_busqueda())
+    if quadro:
 
-    await update.message.reply_text(
+        keyboard.append([
+            InlineKeyboardButton(
+                f"👥 Ver QSA ({len(quadro)})",
+                callback_data="qsa_ver"
+            )
+        ])
+
+    keyboard.extend(
+        teclado_busqueda()
+    )
+
+    mensagem = (
         "🏢 EMPRESA\n"
         "━━━━━━━━━━━━━━━━\n\n"
+
         f"🔢 CNPJ:\n"
-        f"{resultados['cnpj']}\n\n"
-        "🔎 Búsquedas públicas:",
-        reply_markup=InlineKeyboardMarkup(keyboard),
+        f"{resultado['cnpj_formatado']}\n\n"
+
+        "🏛️ IDENTIFICACIÓN\n"
+        "━━━━━━━━━━━━━━━━\n"
+        f"🏢 Razão Social: "
+        f"{razao_social}\n"
+        f"🏷️ Nome Fantasia: "
+        f"{nome_fantasia}\n"
+        f"🏢 Tipo: {tipo}\n"
+        f"📅 Abertura: "
+        f"{data_abertura}\n\n"
+
+        "📊 SITUAÇÃO\n"
+        "━━━━━━━━━━━━━━━━\n"
+        f"🟢 Situação: "
+        f"{situacao}\n"
+        f"📅 Data: "
+        f"{data_situacao}\n"
+        f"ℹ️ Motivo: "
+        f"{motivo}\n\n"
+
+        "💼 ATIVIDADE\n"
+        "━━━━━━━━━━━━━━━━\n"
+        f"🔢 CNAE: {cnae}\n"
+        f"📋 {cnae_descricao}\n\n"
+
+        "📍 LOCALIZAÇÃO\n"
+        "━━━━━━━━━━━━━━━━\n"
+        f"🏠 {endereco_linha}\n"
+        f"🏘️ Bairro: {bairro}\n"
+        f"📮 CEP: {cep_formatado}\n"
+        f"🏙️ Cidade: {municipio}\n"
+        f"🇧🇷 UF: {uf}\n\n"
+
+        "📞 CONTACTO\n"
+        "━━━━━━━━━━━━━━━━\n"
+        f"📞 DDD: {ddd}\n"
+        f"☎️ Telefone: "
+        f"{telefone_formatado}\n"
+        f"📧 E-mail: {email}\n\n"
+
+        "💰 FINANZAS\n"
+        "━━━━━━━━━━━━━━━━\n"
+        f"💵 Capital Social: "
+        f"{capital_formatado}\n"
+        f"🏷️ Porte: {porte}\n\n"
+    )
+
+    if quadro:
+
+        mensagem += (
+            "👥 QUADRO SOCIETÁRIO\n"
+            "━━━━━━━━━━━━━━━━\n"
+            f"👥 Total de registros: "
+            f"{len(quadro)}\n"
+            "👉 Pulsa «Ver QSA» "
+            "para consultar todos.\n\n"
+        )
+
+    else:
+
+        mensagem += (
+            "👥 QUADRO SOCIETÁRIO\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "No informado.\n\n"
+        )
+
+    mensagem += (
+        "🔎 Búsquedas públicas:"
+    )
+
+    await update.message.reply_text(
+        mensagem,
+        reply_markup=InlineKeyboardMarkup(
+            keyboard
+        )
     )
 
     return ESPERANDO_CNPJ
@@ -392,6 +832,7 @@ async def nueva_busqueda_cnpj(
 ):
 
     query = update.callback_query
+
     await query.answer()
 
     await query.message.reply_text(
@@ -404,6 +845,505 @@ async def nueva_busqueda_cnpj(
 
 
 # ============================================================
+# QSA
+# ============================================================
+
+TAMANHO_PAGINA_QSA = 10
+
+
+def teclado_qsa(
+    pagina,
+    total
+):
+
+    total_paginas = (
+        (
+            total
+            + TAMANHO_PAGINA_QSA
+            - 1
+        )
+        // TAMANHO_PAGINA_QSA
+    )
+
+    keyboard = []
+
+    navegacion = []
+
+    if pagina > 0:
+
+        navegacion.append(
+            InlineKeyboardButton(
+                "⬅️ Anteriores",
+                callback_data="qsa_prev"
+            )
+        )
+
+    if pagina < total_paginas - 1:
+
+        navegacion.append(
+            InlineKeyboardButton(
+                "Siguientes ➡️",
+                callback_data="qsa_next"
+            )
+        )
+
+    if navegacion:
+
+        keyboard.append(
+            navegacion
+        )
+
+    keyboard.append([
+        InlineKeyboardButton(
+            "🔙 Volver a Empresa",
+            callback_data="qsa_volver"
+        )
+    ])
+
+    return keyboard
+
+
+async def mostrar_qsa(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    qsa = context.user_data.get(
+        "qsa",
+        []
+    )
+
+    pagina = context.user_data.get(
+        "qsa_pagina",
+        0
+    )
+
+    if not qsa:
+
+        await query.message.reply_text(
+            "❌ No hay registros de QSA disponibles."
+        )
+
+        return ESPERANDO_CNPJ
+
+    total = len(qsa)
+
+    inicio = (
+        pagina
+        * TAMANHO_PAGINA_QSA
+    )
+
+    fim = min(
+        inicio + TAMANHO_PAGINA_QSA,
+        total
+    )
+
+    registros = qsa[
+        inicio:fim
+    ]
+
+    total_paginas = (
+        (
+            total
+            + TAMANHO_PAGINA_QSA
+            - 1
+        )
+        // TAMANHO_PAGINA_QSA
+    )
+
+    mensagem = (
+        "👥 QUADRO SOCIETÁRIO\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        f"📄 Registros "
+        f"{inicio + 1}–{fim} de {total}\n"
+        f"📑 Página "
+        f"{pagina + 1} de {total_paginas}\n\n"
+    )
+
+    for numero, pessoa in enumerate(
+        registros,
+        start=inicio + 1
+    ):
+
+        nome = pessoa.get(
+            "nome",
+            "No informado"
+        )
+
+        qualificacao = pessoa.get(
+            "qualificacao",
+            "No informada"
+        )
+
+        data_entrada = pessoa.get(
+            "data_entrada"
+        )
+
+        mensagem += (
+            f"{numero}. {nome}\n"
+            f"   👤 {qualificacao}\n"
+        )
+
+        if data_entrada:
+
+            mensagem += (
+                f"   📅 Entrada: "
+                f"{data_entrada}\n"
+            )
+
+        mensagem += "\n"
+
+    keyboard = teclado_qsa(
+        pagina,
+        total
+    )
+
+    await query.message.reply_text(
+        mensagem,
+        reply_markup=InlineKeyboardMarkup(
+            keyboard
+        )
+    )
+
+    return ESPERANDO_CNPJ
+
+
+async def qsa_next(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    qsa = context.user_data.get(
+        "qsa",
+        []
+    )
+
+    total_paginas = (
+        (
+            len(qsa)
+            + TAMANHO_PAGINA_QSA
+            - 1
+        )
+        // TAMANHO_PAGINA_QSA
+    )
+
+    pagina = context.user_data.get(
+        "qsa_pagina",
+        0
+    )
+
+    if pagina < total_paginas - 1:
+
+        context.user_data[
+            "qsa_pagina"
+        ] = pagina + 1
+
+    return await mostrar_qsa(
+        update,
+        context
+    )
+
+
+async def qsa_prev(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    pagina = context.user_data.get(
+        "qsa_pagina",
+        0
+    )
+
+    if pagina > 0:
+
+        context.user_data[
+            "qsa_pagina"
+        ] = pagina - 1
+
+    return await mostrar_qsa(
+        update,
+        context
+    )
+
+
+async def qsa_volver(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    await query.message.reply_text(
+        "🏢 EMPRESA\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        "Usa 🔁 Nueva búsqueda "
+        "para consultar otro CNPJ."
+    )
+
+    return ESPERANDO_CNPJ
+
+
+# ============================================================
+# RAZÃO SOCIAL
+# ============================================================
+
+async def razao_social(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    await query.message.reply_text(
+        "🏷️ RAZÃO SOCIAL\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        "Introduce la Razão Social "
+        "que quieres investigar.\n\n"
+        "Ejemplo:\n"
+        "BANCO DO BRASIL SA"
+    )
+
+    return ESPERANDO_RAZAO_SOCIAL
+
+
+async def recibir_razao_social(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    nome = update.message.text.strip()
+
+    resultado = buscar_empresa_por_nome(
+        nome,
+        "razao_social"
+    )
+
+    if resultado is None:
+
+        await update.message.reply_text(
+            "❌ Introduce al menos "
+            "3 caracteres."
+        )
+
+        return ESPERANDO_RAZAO_SOCIAL
+
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "🔍 Google",
+                url=resultado["google"]
+            ),
+            InlineKeyboardButton(
+                "🔢 Buscar CNPJ",
+                url=resultado["google_cnpj"]
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                "📰 Google News",
+                url=resultado["google_news"]
+            ),
+            InlineKeyboardButton(
+                "🔎 Bing",
+                url=resultado["bing"]
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                "🦆 DuckDuckGo",
+                url=resultado["duckduckgo"]
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                "🏛️ Buscar en gov.br",
+                url=resultado["google_gov"]
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                "🗺️ Google Maps",
+                url=resultado["google_maps"]
+            ),
+        ],
+    ]
+
+    keyboard.extend(
+        teclado_busqueda()
+    )
+
+    await update.message.reply_text(
+        "🏷️ RAZÃO SOCIAL\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        f"🏢 Empresa:\n"
+        f"{resultado['nome']}\n\n"
+        "⚠️ Los resultados proceden "
+        "de búsquedas públicas.\n"
+        "⚠️ Verifica el CNPJ antes de "
+        "considerarlo como coincidencia.\n\n"
+        "🔎 Búsquedas:",
+        reply_markup=InlineKeyboardMarkup(
+            keyboard
+        )
+    )
+
+    return ESPERANDO_RAZAO_SOCIAL
+
+
+async def nueva_busqueda_razao_social(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    await query.message.reply_text(
+        "🔁 RAZÃO SOCIAL\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        "Introduce la nueva Razão Social:"
+    )
+
+    return ESPERANDO_RAZAO_SOCIAL
+
+
+# ============================================================
+# NOME FANTASIA
+# ============================================================
+
+async def nome_fantasia(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    await query.message.reply_text(
+        "🏪 NOME FANTASIA\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        "Introduce el Nome Fantasia "
+        "que quieres investigar.\n\n"
+        "Ejemplo:\n"
+        "DIRECAO GERAL"
+    )
+
+    return ESPERANDO_NOME_FANTASIA
+
+
+async def recibir_nome_fantasia(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    nome = update.message.text.strip()
+
+    resultado = buscar_empresa_por_nome(
+        nome,
+        "nome_fantasia"
+    )
+
+    if resultado is None:
+
+        await update.message.reply_text(
+            "❌ Introduce al menos "
+            "3 caracteres."
+        )
+
+        return ESPERANDO_NOME_FANTASIA
+
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "🔍 Google",
+                url=resultado["google"]
+            ),
+            InlineKeyboardButton(
+                "🔢 Buscar CNPJ",
+                url=resultado["google_cnpj"]
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                "📰 Google News",
+                url=resultado["google_news"]
+            ),
+            InlineKeyboardButton(
+                "🔎 Bing",
+                url=resultado["bing"]
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                "🦆 DuckDuckGo",
+                url=resultado["duckduckgo"]
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                "🏛️ Buscar en gov.br",
+                url=resultado["google_gov"]
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                "🗺️ Google Maps",
+                url=resultado["google_maps"]
+            ),
+        ],
+    ]
+
+    keyboard.extend(
+        teclado_busqueda()
+    )
+
+    await update.message.reply_text(
+        "🏪 NOME FANTASIA\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        f"🏢 Nombre:\n"
+        f"{resultado['nome']}\n\n"
+        "⚠️ Los resultados proceden "
+        "de búsquedas públicas.\n"
+        "⚠️ Verifica el CNPJ antes de "
+        "considerarlo como coincidencia.\n\n"
+        "🔎 Búsquedas:",
+        reply_markup=InlineKeyboardMarkup(
+            keyboard
+        )
+    )
+
+    return ESPERANDO_NOME_FANTASIA
+
+
+async def nueva_busqueda_nome_fantasia(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    await query.message.reply_text(
+        "🔁 NOME FANTASIA\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        "Introduce el nuevo Nome Fantasia:"
+    )
+
+    return ESPERANDO_NOME_FANTASIA
+
+
+# ============================================================
 # TELÉFONO
 # ============================================================
 
@@ -413,10 +1353,12 @@ async def telefono(
 ):
 
     query = update.callback_query
+
     await query.answer()
 
     await query.message.reply_text(
-        "📱 Introduce el número de teléfono que quieres investigar:\n\n"
+        "📱 Introduce el número de teléfono "
+        "que quieres investigar:\n\n"
         "Ejemplo:\n"
         "+55 11 99999-9999"
     )
@@ -431,48 +1373,69 @@ async def recibir_telefono(
 
     telefone_usuario = update.message.text
 
-    resultado = analisar_telefone(telefone_usuario)
+    resultado = analisar_telefone(
+        telefone_usuario
+    )
 
     if resultado is None:
 
         await update.message.reply_text(
-            "❌ El número no tiene un formato válido.\n\n"
-            "Introduce un teléfono brasileño válido.\n"
-            "Ejemplo:\n"
-            "+55 11 99999-9999"
+            "❌ El número no tiene un "
+            "formato válido."
         )
 
         return ESPERANDO_TELEFONO
 
     numero = resultado["numero"]
-    numero_internacional = resultado["numero_internacional"]
 
-    busqueda_numero = f'"{numero}"'
-    busqueda_internacional = f'"{numero_internacional}"'
+    numero_internacional = (
+        resultado[
+            "numero_internacional"
+        ]
+    )
+
+    busqueda_numero = (
+        f'"{numero}"'
+    )
+
+    busqueda_internacional = (
+        f'"{numero_internacional}"'
+    )
 
     google = (
         "https://www.google.com/search?q="
-        + quote_plus(busqueda_numero)
+        + quote_plus(
+            busqueda_numero
+        )
     )
 
     google_internacional = (
         "https://www.google.com/search?q="
-        + quote_plus(busqueda_internacional)
+        + quote_plus(
+            busqueda_internacional
+        )
     )
 
     google_news = (
-        "https://www.google.com/search?tbm=nws&q="
-        + quote_plus(busqueda_numero)
+        "https://www.google.com/search?"
+        "tbm=nws&q="
+        + quote_plus(
+            busqueda_numero
+        )
     )
 
     bing = (
         "https://www.bing.com/search?q="
-        + quote_plus(busqueda_numero)
+        + quote_plus(
+            busqueda_numero
+        )
     )
 
     duckduckgo = (
         "https://duckduckgo.com/?q="
-        + quote_plus(busqueda_numero)
+        + quote_plus(
+            busqueda_numero
+        )
     )
 
     keyboard = [
@@ -504,17 +1467,22 @@ async def recibir_telefono(
         ],
     ]
 
-    keyboard.extend(teclado_busqueda())
+    keyboard.extend(
+        teclado_busqueda()
+    )
 
     await update.message.reply_text(
         "📱 TELÉFONO\n"
         "━━━━━━━━━━━━━━━━\n\n"
         f"📞 Número: {numero}\n"
-        f"🌎 Internacional: +{numero_internacional}\n"
+        f"🌎 Internacional: "
+        f"+{numero_internacional}\n"
         f"📍 DDD: {resultado['ddd']}\n"
         f"📱 Tipo: {resultado['tipo']}\n\n"
         "🔎 Búsquedas públicas:",
-        reply_markup=InlineKeyboardMarkup(keyboard),
+        reply_markup=InlineKeyboardMarkup(
+            keyboard
+        ),
     )
 
     return ESPERANDO_TELEFONO
@@ -526,6 +1494,7 @@ async def nueva_busqueda_telefono(
 ):
 
     query = update.callback_query
+
     await query.answer()
 
     await query.message.reply_text(
@@ -547,6 +1516,7 @@ async def vehiculo(
 ):
 
     query = update.callback_query
+
     await query.answer()
 
     await query.message.reply_text(
@@ -566,22 +1536,24 @@ async def recibir_placa(
 
     placa_usuario = update.message.text
 
-    resultado = analisar_placa(placa_usuario)
+    resultado = analisar_placa(
+        placa_usuario
+    )
 
     if resultado is None:
 
         await update.message.reply_text(
-            "❌ La placa no tiene un formato brasileño válido.\n\n"
-            "Formatos aceptados:\n"
-            "• ABC-1234\n"
-            "• ABC1D23"
+            "❌ La placa no tiene un formato "
+            "brasileño válido."
         )
 
         return ESPERANDO_PLACA
 
     placa = resultado["placa"]
 
-    busqueda = f'"{placa}"'
+    busqueda = (
+        f'"{placa}"'
+    )
 
     google = (
         "https://www.google.com/search?q="
@@ -589,7 +1561,8 @@ async def recibir_placa(
     )
 
     google_news = (
-        "https://www.google.com/search?tbm=nws&q="
+        "https://www.google.com/search?"
+        "tbm=nws&q="
         + quote_plus(busqueda)
     )
 
@@ -626,15 +1599,20 @@ async def recibir_placa(
         ],
     ]
 
-    keyboard.extend(teclado_busqueda())
+    keyboard.extend(
+        teclado_busqueda()
+    )
 
     await update.message.reply_text(
         "🚗 VEHÍCULO\n"
         "━━━━━━━━━━━━━━━━\n\n"
         f"🔢 Placa: {placa}\n"
-        f"📋 Formato: {resultado['tipo']}\n\n"
+        f"📋 Formato: "
+        f"{resultado['tipo']}\n\n"
         "🔎 Búsquedas públicas:",
-        reply_markup=InlineKeyboardMarkup(keyboard),
+        reply_markup=InlineKeyboardMarkup(
+            keyboard
+        ),
     )
 
     return ESPERANDO_PLACA
@@ -646,6 +1624,7 @@ async def nueva_busqueda_vehiculo(
 ):
 
     query = update.callback_query
+
     await query.answer()
 
     await query.message.reply_text(
@@ -667,6 +1646,7 @@ async def direccion(
 ):
 
     query = update.callback_query
+
     await query.answer()
 
     await query.message.reply_text(
@@ -674,7 +1654,8 @@ async def direccion(
         "━━━━━━━━━━━━━━━━\n\n"
         "Introduce una dirección o un CEP.\n\n"
         "Ejemplos:\n"
-        "Av. Francisco Matarazzo, 1000, São Paulo - SP\n"
+        "Av. Francisco Matarazzo, "
+        "1000, São Paulo - SP\n"
         "05001-100"
     )
 
@@ -688,34 +1669,42 @@ async def recibir_direccion(
 
     direccion_usuario = update.message.text
 
-    resultado = analisar_direccion(direccion_usuario)
+    resultado = analisar_direccion(
+        direccion_usuario
+    )
 
     if resultado is None:
 
         await update.message.reply_text(
-            "❌ El dato no parece válido.\n\n"
-            "Introduce una dirección o un CEP válido."
+            "❌ El dato no parece válido."
         )
 
         return ESPERANDO_DIRECCION
 
-    direccion_normalizada = resultado["direccion"]
-    cep = resultado["cep"]
-    datos_cep = resultado["datos_cep"]
-    datos_geo = resultado.get("datos_geocodificacion")
-    cep_confirmado = resultado.get("cep_confirmado", False)
+    direccion_normalizada = (
+        resultado["direccion"]
+    )
 
-    # ========================================================
-    # CASO 1: CEP INTRODUCIDO DIRECTAMENTE
-    # ========================================================
+    cep = resultado["cep"]
+
+    datos_cep = resultado["datos_cep"]
+
+    datos_geo = resultado.get(
+        "datos_geocodificacion"
+    )
+
+    cep_confirmado = resultado.get(
+        "cep_confirmado",
+        False
+    )
 
     if resultado["es_cep"]:
 
         if datos_cep is None:
 
             await update.message.reply_text(
-                "❌ No encontramos información para ese CEP.\n\n"
-                "Comprueba que el CEP tenga 8 dígitos."
+                "❌ No encontramos información "
+                "para ese CEP."
             )
 
             return ESPERANDO_DIRECCION
@@ -761,8 +1750,10 @@ async def recibir_direccion(
         )
 
         consulta = (
-            f'"{logradouro}" "{bairro}" '
-            f'"{cidade}" "{uf}"'
+            f'"{logradouro}" '
+            f'"{bairro}" '
+            f'"{cidade}" '
+            f'"{uf}"'
         )
 
         google = (
@@ -771,15 +1762,18 @@ async def recibir_direccion(
         )
 
         google_maps = (
-            "https://www.google.com/maps/search/?api=1&query="
+            "https://www.google.com/maps/search/"
+            "?api=1&query="
             + quote_plus(
-                f"{logradouro}, {bairro}, "
+                f"{logradouro}, "
+                f"{bairro}, "
                 f"{cidade} - {uf}"
             )
         )
 
         google_news = (
-            "https://www.google.com/search?tbm=nws&q="
+            "https://www.google.com/search?"
+            "tbm=nws&q="
             + quote_plus(consulta)
         )
 
@@ -833,70 +1827,86 @@ async def recibir_direccion(
             ],
         ]
 
-        keyboard.extend(teclado_busqueda())
+        keyboard.extend(
+            teclado_busqueda()
+        )
 
         await update.message.reply_text(
             "📮 CEP\n"
             "━━━━━━━━━━━━━━━━\n\n"
-            f"📮 CEP: {datos_cep.get('cep', direccion_normalizada)}\n"
+            f"📮 CEP: "
+            f"{datos_cep.get('cep', cep)}\n"
             "✅ Confirmado por ViaCEP\n\n"
-            f"🏠 Logradouro: {logradouro}\n"
+            f"🏠 Logradouro: "
+            f"{logradouro}\n"
             f"🏘️ Bairro: {bairro}\n"
             f"🏙️ Ciudad: {cidade}\n"
-            f"🇧🇷 Estado: {estado} ({uf})\n"
+            f"🇧🇷 Estado: "
+            f"{estado} ({uf})\n"
             f"🌎 Región: {regiao}\n"
             f"📞 DDD: {ddd}\n"
             f"🔢 IBGE: {ibge}\n\n"
             "🔎 Búsquedas públicas:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
+            reply_markup=InlineKeyboardMarkup(
+                keyboard
+            ),
         )
 
         return ESPERANDO_DIRECCION
 
-    # ========================================================
-    # CASO 2: DIRECCIÓN
-    # ========================================================
-
-    busqueda_direccion = f'"{direccion_normalizada}"'
+    busqueda_direccion = (
+        f'"{direccion_normalizada}"'
+    )
 
     google = (
         "https://www.google.com/search?q="
-        + quote_plus(busqueda_direccion)
+        + quote_plus(
+            busqueda_direccion
+        )
     )
 
     google_maps = (
-        "https://www.google.com/maps/search/?api=1&query="
-        + quote_plus(direccion_normalizada)
+        "https://www.google.com/maps/search/"
+        "?api=1&query="
+        + quote_plus(
+            direccion_normalizada
+        )
     )
 
     google_news = (
-        "https://www.google.com/search?tbm=nws&q="
-        + quote_plus(busqueda_direccion)
+        "https://www.google.com/search?"
+        "tbm=nws&q="
+        + quote_plus(
+            busqueda_direccion
+        )
     )
 
     bing = (
         "https://www.bing.com/search?q="
-        + quote_plus(busqueda_direccion)
+        + quote_plus(
+            busqueda_direccion
+        )
     )
 
     duckduckgo = (
         "https://duckduckgo.com/?q="
-        + quote_plus(busqueda_direccion)
+        + quote_plus(
+            busqueda_direccion
+        )
     )
 
     osm_url = (
-        "https://www.openstreetmap.org/search?query="
-        + quote_plus(direccion_normalizada)
+        "https://www.openstreetmap.org/search?"
+        "query="
+        + quote_plus(
+            direccion_normalizada
+        )
     )
 
     correios = (
         "https://buscacepinter.correios.com.br/"
         "app/localidade_logradouro/index.php"
     )
-
-    # ========================================================
-    # INFORMACIÓN DE GEOCODIFICACIÓN
-    # ========================================================
 
     geo_extra = ""
 
@@ -944,47 +1954,80 @@ async def recibir_direccion(
         geo_extra = (
             "🗺️ GEOCODIFICACIÓN\n"
             "━━━━━━━━━━━━━━━━\n"
-            f"📌 Ubicación: {display_name}\n"
-            f"🌐 Latitud: {latitude}\n"
-            f"🌐 Longitud: {longitude}\n"
+            f"📌 Ubicación: "
+            f"{display_name}\n"
+            f"🌐 Latitud: "
+            f"{latitude}\n"
+            f"🌐 Longitud: "
+            f"{longitude}\n"
         )
 
         if geo_logradouro:
+
             geo_extra += (
-                f"🏠 Logradouro: {geo_logradouro}\n"
+                f"🏠 Logradouro: "
+                f"{geo_logradouro}\n"
             )
 
         if geo_numero:
+
             geo_extra += (
-                f"🔢 Número: {geo_numero}\n"
+                f"🔢 Número: "
+                f"{geo_numero}\n"
             )
 
         if geo_bairro:
+
             geo_extra += (
-                f"🏘️ Bairro: {geo_bairro}\n"
+                f"🏘️ Bairro: "
+                f"{geo_bairro}\n"
             )
 
         if geo_cidade:
+
             geo_extra += (
-                f"🏙️ Ciudad: {geo_cidade}\n"
+                f"🏙️ Ciudad: "
+                f"{geo_cidade}\n"
             )
 
         if geo_estado:
+
             geo_extra += (
-                f"🇧🇷 Estado: {geo_estado}\n"
+                f"🇧🇷 Estado: "
+                f"{geo_estado}\n"
             )
 
-        if geo_cep_sugerido and not cep_confirmado:
+        if (
+            geo_cep_sugerido
+            and not cep_confirmado
+        ):
+
+            cep_geo = "".join(
+                c
+                for c in str(
+                    geo_cep_sugerido
+                )
+                if c.isdigit()
+            )
+
+            if len(cep_geo) == 8:
+
+                cep_geo = (
+                    f"{cep_geo[:5]}-"
+                    f"{cep_geo[5:]}"
+                )
+
             geo_extra += (
-                f"📮 CEP sugerido: {geo_cep_sugerido}\n"
+                f"📮 CEP sugerido: "
+                f"{cep_geo}\n"
                 "⚠️ No verificado\n"
             )
 
-    # ========================================================
-    # INFORMACIÓN DEL CEP
-    # ========================================================
-
-    if cep and cep_confirmado and datos_cep:
+    if (
+        cep
+        and cep_confirmado
+        and datos_cep
+    ):
 
         logradouro = datos_cep.get(
             "logradouro",
@@ -1029,12 +2072,15 @@ async def recibir_direccion(
         info_extra = (
             "📮 INFORMACIÓN DEL CEP\n"
             "━━━━━━━━━━━━━━━━\n"
-            f"📮 CEP: {datos_cep.get('cep', cep)}\n"
+            f"📮 CEP: "
+            f"{datos_cep.get('cep', cep)}\n"
             "✅ Confirmado por ViaCEP\n"
-            f"🏠 Logradouro: {logradouro}\n"
+            f"🏠 Logradouro: "
+            f"{logradouro}\n"
             f"🏘️ Bairro: {bairro}\n"
             f"🏙️ Ciudad: {cidade}\n"
-            f"🇧🇷 Estado: {estado} ({uf})\n"
+            f"🇧🇷 Estado: "
+            f"{estado} ({uf})\n"
             f"🌎 Región: {regiao}\n"
             f"📞 DDD: {ddd}\n"
             f"🔢 IBGE: {ibge}\n"
@@ -1042,11 +2088,26 @@ async def recibir_direccion(
 
     elif cep:
 
+        cep_sugerido = "".join(
+            c
+            for c in str(cep)
+            if c.isdigit()
+        )
+
+        if len(cep_sugerido) == 8:
+
+            cep_sugerido = (
+                f"{cep_sugerido[:5]}-"
+                f"{cep_sugerido[5:]}"
+            )
+
         info_extra = (
             "📮 CEP SUGERIDO\n"
             "━━━━━━━━━━━━━━━━\n"
-            f"📮 CEP: {cep}\n"
-            "⚠️ Encontrado por geocodificación.\n"
+            f"📮 CEP: "
+            f"{cep_sugerido}\n"
+            "⚠️ Encontrado por "
+            "geocodificación.\n"
             "⚠️ No confirmado por ViaCEP.\n"
         )
 
@@ -1055,12 +2116,9 @@ async def recibir_direccion(
         info_extra = (
             "📮 CEP\n"
             "━━━━━━━━━━━━━━━━\n"
-            "📮 CEP: No encontrado automáticamente\n"
+            "📮 CEP: No encontrado "
+            "automáticamente\n"
         )
-
-    # ========================================================
-    # TECLADO
-    # ========================================================
 
     keyboard = [
         [
@@ -1101,17 +2159,21 @@ async def recibir_direccion(
         ],
     ]
 
-    keyboard.extend(teclado_busqueda())
+    keyboard.extend(
+        teclado_busqueda()
+    )
 
     await update.message.reply_text(
         "📍 DIRECCIÓN\n"
         "━━━━━━━━━━━━━━━━\n\n"
         f"🏠 Dirección:\n"
         f"{direccion_normalizada}\n\n"
-        f"{info_extra}\n"
+        f"{info_extra}"
         f"{geo_extra}\n"
         "🔎 Búsquedas públicas:",
-        reply_markup=InlineKeyboardMarkup(keyboard),
+        reply_markup=InlineKeyboardMarkup(
+            keyboard
+        ),
     )
 
     return ESPERANDO_DIRECCION
@@ -1123,6 +2185,7 @@ async def nueva_busqueda_direccion(
 ):
 
     query = update.callback_query
+
     await query.answer()
 
     await query.message.reply_text(
@@ -1144,6 +2207,7 @@ async def dominio(
 ):
 
     query = update.callback_query
+
     await query.answer()
 
     await query.message.reply_text(
@@ -1166,22 +2230,26 @@ async def recibir_dominio(
 
     dominio_usuario = update.message.text
 
-    resultado = analisar_dominio(dominio_usuario)
+    resultado = analisar_dominio(
+        dominio_usuario
+    )
 
     if resultado is None:
 
         await update.message.reply_text(
-            "❌ El dominio no tiene un formato válido.\n\n"
-            "Ejemplos:\n"
-            "google.com\n"
-            "empresa.com.br"
+            "❌ El dominio no tiene "
+            "un formato válido."
         )
 
         return ESPERANDO_DOMINIO
 
     dominio = resultado["dominio"]
+
     tld = resultado["tld"]
-    subdominio = resultado["subdominio"]
+
+    subdominio = resultado[
+        "subdominio"
+    ]
 
     busqueda = f'"{dominio}"'
 
@@ -1191,7 +2259,8 @@ async def recibir_dominio(
     )
 
     google_news = (
-        "https://www.google.com/search?tbm=nws&q="
+        "https://www.google.com/search?"
+        "tbm=nws&q="
         + quote_plus(busqueda)
     )
 
@@ -1213,7 +2282,8 @@ async def recibir_dominio(
     )
 
     google_maps = (
-        "https://www.google.com/maps/search/?api=1&query="
+        "https://www.google.com/maps/search/"
+        "?api=1&query="
         + quote_plus(dominio)
     )
 
@@ -1252,7 +2322,9 @@ async def recibir_dominio(
         ],
     ]
 
-    keyboard.extend(teclado_busqueda())
+    keyboard.extend(
+        teclado_busqueda()
+    )
 
     subdominio_texto = (
         subdominio
@@ -1265,9 +2337,12 @@ async def recibir_dominio(
         "━━━━━━━━━━━━━━━━\n\n"
         f"🌐 Dominio: {dominio}\n"
         f"🔤 TLD: .{tld}\n"
-        f"🔗 Subdominio: {subdominio_texto}\n\n"
+        f"🔗 Subdominio: "
+        f"{subdominio_texto}\n\n"
         "🔎 Búsquedas públicas:",
-        reply_markup=InlineKeyboardMarkup(keyboard),
+        reply_markup=InlineKeyboardMarkup(
+            keyboard
+        ),
     )
 
     return ESPERANDO_DOMINIO
@@ -1279,6 +2354,7 @@ async def nueva_busqueda_dominio(
 ):
 
     query = update.callback_query
+
     await query.answer()
 
     await query.message.reply_text(
@@ -1321,21 +2397,31 @@ async def botones_menu(
     if query.data == "noop":
 
         await query.answer()
+
         return
 
     if query.data == "empresa":
 
-        await empresa(update, context)
+        await empresa(
+            update,
+            context
+        )
+
         return
 
     await query.answer()
 
     mensajes = {
+
         "razao_social":
-            "🏷️ Razão Social\n\n🚧 Próximamente...",
+            "🏷️ Razão Social\n\n"
+            "Usa la opción "
+            "Razão Social del menú.",
 
         "nome_fantasia":
-            "🏪 Nome Fantasia\n\n🚧 Próximamente...",
+            "🏪 Nome Fantasia\n\n"
+            "Usa la opción "
+            "Nome Fantasia del menú.",
     }
 
     await query.message.reply_text(
@@ -1353,17 +2439,25 @@ async def botones_menu(
 def main():
 
     if not TOKEN:
+
         raise RuntimeError(
-            "❌ BOT_TOKEN no está configurado en el archivo .env"
+            "❌ BOT_TOKEN no está configurado "
+            "en el archivo .env"
         )
 
-    app = Application.builder().token(TOKEN).build()
+    app = (
+        Application
+        .builder()
+        .token(TOKEN)
+        .build()
+    )
 
     # ========================================================
     # PERSONA
     # ========================================================
 
     conversacion_persona = ConversationHandler(
+
         entry_points=[
             CommandHandler(
                 "persona",
@@ -1376,12 +2470,15 @@ def main():
         ],
 
         states={
+
             ESPERANDO_NOMBRE: [
                 MessageHandler(
-                    filters.TEXT & ~filters.COMMAND,
+                    filters.TEXT
+                    & ~filters.COMMAND,
                     recibir_nombre
                 )
             ]
+
         },
 
         fallbacks=[
@@ -1407,6 +2504,7 @@ def main():
     # ========================================================
 
     conversacion_cnpj = ConversationHandler(
+
         entry_points=[
             CallbackQueryHandler(
                 cnpj,
@@ -1415,12 +2513,15 @@ def main():
         ],
 
         states={
+
             ESPERANDO_CNPJ: [
                 MessageHandler(
-                    filters.TEXT & ~filters.COMMAND,
+                    filters.TEXT
+                    & ~filters.COMMAND,
                     recibir_cnpj
                 )
             ]
+
         },
 
         fallbacks=[
@@ -1436,9 +2537,119 @@ def main():
                 menu_principal,
                 pattern="^menu_principal$"
             ),
+            CallbackQueryHandler(
+                mostrar_qsa,
+                pattern="^qsa_ver$"
+            ),
+            CallbackQueryHandler(
+                qsa_next,
+                pattern="^qsa_next$"
+            ),
+            CallbackQueryHandler(
+                qsa_prev,
+                pattern="^qsa_prev$"
+            ),
+            CallbackQueryHandler(
+                qsa_volver,
+                pattern="^qsa_volver$"
+            ),
         ],
 
         allow_reentry=True,
+    )
+
+    # ========================================================
+    # RAZÃO SOCIAL
+    # ========================================================
+
+    conversacion_razao_social = (
+        ConversationHandler(
+
+            entry_points=[
+                CallbackQueryHandler(
+                    razao_social,
+                    pattern="^razao_social$"
+                )
+            ],
+
+            states={
+
+                ESPERANDO_RAZAO_SOCIAL: [
+                    MessageHandler(
+                        filters.TEXT
+                        & ~filters.COMMAND,
+                        recibir_razao_social
+                    )
+                ]
+
+            },
+
+            fallbacks=[
+                CommandHandler(
+                    "cancelar",
+                    cancelar
+                ),
+                CallbackQueryHandler(
+                    nueva_busqueda_razao_social,
+                    pattern="^nueva_busqueda$"
+                ),
+                CallbackQueryHandler(
+                    nueva_busqueda_razao_social,
+                    pattern="^nueva_busqueda$"
+                ),
+                CallbackQueryHandler(
+                    menu_principal,
+                    pattern="^menu_principal$"
+                ),
+            ],
+
+            allow_reentry=True,
+        )
+    )
+
+    # ========================================================
+    # NOME FANTASIA
+    # ========================================================
+
+    conversacion_nome_fantasia = (
+        ConversationHandler(
+
+            entry_points=[
+                CallbackQueryHandler(
+                    nome_fantasia,
+                    pattern="^nome_fantasia$"
+                )
+            ],
+
+            states={
+
+                ESPERANDO_NOME_FANTASIA: [
+                    MessageHandler(
+                        filters.TEXT
+                        & ~filters.COMMAND,
+                        recibir_nome_fantasia
+                    )
+                ]
+
+            },
+
+            fallbacks=[
+                CommandHandler(
+                    "cancelar",
+                    cancelar
+                ),
+                CallbackQueryHandler(
+                    nueva_busqueda_nome_fantasia,
+                    pattern="^nueva_busqueda$"
+                ),
+                CallbackQueryHandler(
+                    menu_principal,
+                    pattern="^menu_principal$"
+                ),
+            ],
+
+            allow_reentry=True,
+        )
     )
 
     # ========================================================
@@ -1446,6 +2657,7 @@ def main():
     # ========================================================
 
     conversacion_telefono = ConversationHandler(
+
         entry_points=[
             CallbackQueryHandler(
                 telefono,
@@ -1454,12 +2666,15 @@ def main():
         ],
 
         states={
+
             ESPERANDO_TELEFONO: [
                 MessageHandler(
-                    filters.TEXT & ~filters.COMMAND,
+                    filters.TEXT
+                    & ~filters.COMMAND,
                     recibir_telefono
                 )
             ]
+
         },
 
         fallbacks=[
@@ -1485,6 +2700,7 @@ def main():
     # ========================================================
 
     conversacion_vehiculo = ConversationHandler(
+
         entry_points=[
             CallbackQueryHandler(
                 vehiculo,
@@ -1493,12 +2709,15 @@ def main():
         ],
 
         states={
+
             ESPERANDO_PLACA: [
                 MessageHandler(
-                    filters.TEXT & ~filters.COMMAND,
+                    filters.TEXT
+                    & ~filters.COMMAND,
                     recibir_placa
                 )
             ]
+
         },
 
         fallbacks=[
@@ -1524,6 +2743,7 @@ def main():
     # ========================================================
 
     conversacion_direccion = ConversationHandler(
+
         entry_points=[
             CallbackQueryHandler(
                 direccion,
@@ -1532,12 +2752,15 @@ def main():
         ],
 
         states={
+
             ESPERANDO_DIRECCION: [
                 MessageHandler(
-                    filters.TEXT & ~filters.COMMAND,
+                    filters.TEXT
+                    & ~filters.COMMAND,
                     recibir_direccion
                 )
             ]
+
         },
 
         fallbacks=[
@@ -1563,6 +2786,7 @@ def main():
     # ========================================================
 
     conversacion_dominio = ConversationHandler(
+
         entry_points=[
             CallbackQueryHandler(
                 dominio,
@@ -1571,12 +2795,15 @@ def main():
         ],
 
         states={
+
             ESPERANDO_DOMINIO: [
                 MessageHandler(
-                    filters.TEXT & ~filters.COMMAND,
+                    filters.TEXT
+                    & ~filters.COMMAND,
                     recibir_dominio
                 )
             ]
+
         },
 
         fallbacks=[
@@ -1617,6 +2844,14 @@ def main():
     )
 
     app.add_handler(
+        conversacion_razao_social
+    )
+
+    app.add_handler(
+        conversacion_nome_fantasia
+    )
+
+    app.add_handler(
         conversacion_telefono
     )
 
@@ -1638,15 +2873,21 @@ def main():
         )
     )
 
-    print("🤖 Brazil OSINT Bot iniciado...")
-    print("Presiona Ctrl+C para detenerlo.")
+    # ========================================================
+    # EJECUCIÓN
+    # ========================================================
+
+    print(
+        "🤖 Brazil OSINT Bot iniciado..."
+    )
+
+    print(
+        "Presiona Ctrl+C para detenerlo."
+    )
 
     app.run_polling()
 
 
-# ============================================================
-# EJECUCIÓN
-# ============================================================
-
 if __name__ == "__main__":
+
     main()
